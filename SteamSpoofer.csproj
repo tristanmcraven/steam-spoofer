@@ -1,0 +1,64 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <PackageIcon></PackageIcon>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Assets\close_window_button.png" />
+    <None Remove="Assets\close_window_button_hover.png" />
+    <None Remove="Assets\Fonts\MotivaSansBlack.woff.ttf" />
+    <None Remove="Assets\Fonts\MotivaSansBold.woff.ttf" />
+    <None Remove="Assets\Fonts\MotivaSansExtraBold.ttf" />
+    <None Remove="Assets\Fonts\MotivaSansLight.woff.ttf" />
+    <None Remove="Assets\Fonts\MotivaSansMedium.woff.ttf" />
+    <None Remove="Assets\Fonts\MotivaSansRegular.woff.ttf" />
+    <None Remove="Assets\Fonts\MotivaSansThin.ttf" />
+    <None Remove="Assets\steamspoofer_icon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="icon.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\close_window_button.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\close_window_button_hover.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\Fonts\MotivaSansBlack.woff.ttf">
+      <CopyToOutputDirectory></CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\Fonts\MotivaSansBold.woff.ttf">
+      <CopyToOutputDirectory></CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\Fonts\MotivaSansExtraBold.ttf">
+      <CopyToOutputDirectory></CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\Fonts\MotivaSansLight.woff.ttf">
+      <CopyToOutputDirectory></CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\Fonts\MotivaSansMedium.woff.ttf">
+      <CopyToOutputDirectory></CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\Fonts\MotivaSansRegular.woff.ttf">
+      <CopyToOutputDirectory></CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\Fonts\MotivaSansThin.ttf">
+      <CopyToOutputDirectory></CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\steamspoofer_icon.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+  </ItemGroup>
+
+</Project>
