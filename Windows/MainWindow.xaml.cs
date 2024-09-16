@@ -23,7 +23,7 @@ namespace SteamSpoofer
     {
 
         private DispatcherTimer _timer;
-        private static int processesCount = 0;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -32,7 +32,7 @@ namespace SteamSpoofer
 
         private void start_Button_Click(object sender, RoutedEventArgs e)
         {
-            TerminateSteam();
+            Spoofer.SpoofData();
         }
 
         private void titleBar_Grid_MouseDown(object sender, MouseButtonEventArgs e)
@@ -41,40 +41,9 @@ namespace SteamSpoofer
                 this.DragMove();
         }
 
-        private static bool IsSteamRunning()
-        {
-            return Process.GetProcessesByName("steam").Any();
-        }
 
-        private static void TerminateSteam()
-        {
-            if (IsSteamRunning())
-            {
-                var steamProcess = Process.GetProcessesByName("steam").FirstOrDefault();
-                var steamRelatedProcesses = Process.GetProcesses().Where(p => p.ProcessName.Equals("steamservice",
-                    StringComparison.OrdinalIgnoreCase) || p.ProcessName.Equals("steamwebhelper")).ToList();
-                processesCount = steamRelatedProcesses.Count;
-                foreach (var srp in steamRelatedProcesses)
-                {
-                    srp.EnableRaisingEvents = true;
-                    srp.Exited += Process_Exited;
-                }
-                steamProcess.Kill();
 
-            }
-        }
 
-        private static void Process_Exited(object? sender, EventArgs e)
-        {
-            processesCount--;
-            if (processesCount == 0)
-            {
-                Application.Current.Dispatcher.Invoke((Action)delegate //no idea why
-                {
-                    new DialogWindow("title", "Process is killed") { Owner = Application.Current.Windows.OfType<MainWindow>().First() }.ShowDialog();
-                });
-            }  
-        }
         
         //private void StartProgress()
         //{
