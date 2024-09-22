@@ -1,14 +1,9 @@
 ﻿using Microsoft.Win32;
 using SteamSpoofer.Windows;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Printing;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Navigation;
 
 namespace SteamSpoofer.Utility
 {
@@ -16,44 +11,45 @@ namespace SteamSpoofer.Utility
     {
         private static int processesCount = 0;
 
-        public static List<string> matches = new List<string>();
+        public static List<string> Matches = new List<string>();
 
-        private static readonly RegistryKey[] RootKeys =
-{
-        Registry.ClassesRoot,
-        Registry.CurrentUser,
-        Registry.LocalMachine,
-        Registry.Users,
-        Registry.CurrentConfig
-    };
+        private static readonly RegistryKey[] Hives =
+        {
+            Registry.ClassesRoot,
+            Registry.CurrentUser,
+            Registry.LocalMachine,
+            Registry.Users,
+            Registry.CurrentConfig
+        };
 
-        public static void SpoofData()
+        public static async Task SpoofData()
         {
             TerminateSteam();
-            SearchEntireRegistry("steam");
-
+            await SearchEntireRegistry("valve");
         }
         private static bool IsSteamRunning()
         {
             return Process.GetProcessesByName("steam").Any();
         }
 
-        private static void TerminateSteam()
+        private static async Task TerminateSteam()
         {
-            if (IsSteamRunning())
+            await Task.Run(() =>
             {
-                var steamProcess = Process.GetProcessesByName("steam").FirstOrDefault();
-                var steamRelatedProcesses = Process.GetProcesses().Where(p => p.ProcessName.Equals("steamservice",
-                    StringComparison.OrdinalIgnoreCase) || p.ProcessName.Equals("steamwebhelper")).ToList();
-                processesCount = steamRelatedProcesses.Count;
-                foreach (var srp in steamRelatedProcesses)
+                if (IsSteamRunning())
                 {
-                    srp.EnableRaisingEvents = true;
-                    srp.Exited += Process_Exited;
+                    var steamProcess = Process.GetProcessesByName("steam").FirstOrDefault();
+                    var steamRelatedProcesses = Process.GetProcesses().Where(p => p.ProcessName.Equals("steamservice",
+                        StringComparison.OrdinalIgnoreCase) || p.ProcessName.Equals("steamwebhelper")).ToList();
+                    processesCount = steamRelatedProcesses.Count;
+                    foreach (var srp in steamRelatedProcesses)
+                    {
+                        srp.EnableRaisingEvents = true;
+                        srp.Exited += Process_Exited;
+                    }
+                    steamProcess.Kill();
                 }
-                steamProcess.Kill();
-
-            }
+            });
         }
         private static void Process_Exited(object? sender, EventArgs e)
         {
@@ -67,61 +63,110 @@ namespace SteamSpoofer.Utility
             }
         }
 
-        public static void SearchEntireRegistry(string searchValue)
+        public static async Task SearchEntireRegistry(string searchValue)
         {
-            var results = new List<string>();
-            foreach (var rootKey in RootKeys)
+            foreach (var hive in Hives)
             {
-                results.AddRange(SearchRegistry(searchValue, rootKey));
+                await SearchRegistryKey(hive, searchValue, hive.Name);
             }
-            matches = results;
         }
 
-        public static List<string> SearchRegistry(string searchValue, RegistryKey rootKey)
-        {
-            var results = new List<string>();
-            SearchRegistryKey(rootKey, searchValue, results, rootKey.Name);
-            return results;
-        }
-
-        private static void SearchRegistryKey(RegistryKey key, string searchValue, List<string> results, string path)
+        public static async Task SearchRegistryKey(RegistryKey key, string searchValue, string path)
         {
             var regex = new Regex(searchValue, RegexOptions.IgnoreCase);
+            var nonregex = new Regex("steamspoofer", RegexOptions.IgnoreCase);
 
-            if (regex.IsMatch(path))
+            await Task.Run(() =>
             {
-                results.Add($"Found in Key Name: {path}");
-            }
-
-            foreach (var valueName in key.GetValueNames())
-            {
-                if (regex.IsMatch(valueName))
+                foreach (var value in key.GetValueNames())
                 {
-                    results.Add($"Found in Value Name: {path}\\{valueName}");
+                    if (regex.IsMatch(value) && !nonregex.IsMatch(value))
+                    {
+                        Matches.Add($"{path}\\{value}");
+                    }
+                    var valueData = key.GetValue(value)?.ToString();
+                    if (valueData != null && regex.IsMatch(valueData) && !nonregex.IsMatch(valueData))
+                    {
+                        Matches.Add($"{path}\\{value}: {valueData}");
+                    }
                 }
-
-                var value = key.GetValue(valueName)?.ToString();
-                if (value != null && regex.IsMatch(value))
-                {
-                    results.Add($"Found in Value Data: {path}\\{valueName}: {value}");
-                }
-            }
+            });
 
             foreach (var subKeyName in key.GetSubKeyNames())
             {
                 try
                 {
-                    using var subKey = key.OpenSubKey(subKeyName);
+                    using var subKey = key.OpenSubKey(subKeyName, true);
                     if (subKey != null)
                     {
-                        SearchRegistryKey(subKey, searchValue, results, $"{path}\\{subKeyName}");
+                        if (regex.IsMatch(subKeyName) && !nonregex.IsMatch(subKeyName))
+                        {
+                            Matches.Add($"{path}\\{subKeyName}");
+                        }
+                        await SearchRegistryKey(subKey, searchValue, $"{path}\\{subKeyName}");
                     }
                 }
-                catch (System.Security.SecurityException)
+                catch (System.Security.SecurityException) 
                 {
-                    // ну и хyй с ним
+                    // ну и хуй с ним
                 }
             }
+        }
+        public static void DeleteFoundEntries()
+        {
+            foreach (var match in Matches)
+            {
+                try
+                {
+                    if (IsValuePath(match))
+                        DeleteRegistryValue(match);
+                    else
+                        DeleteRegistryKey(match);
+                }
+                catch (Exception)
+                {
+
+                }
+            }
+        }
+
+        private static bool IsValuePath(string path) => path.Contains(":");
+
+        private static void DeleteRegistryValue(string valuePath)
+        {
+            var pathParts = valuePath.Split('\\');
+            var hiveName = pathParts[0];
+            var subKeyPath = string.Join("\\", pathParts, 1, pathParts.Length - 2);
+            var valueName = pathParts[pathParts.Length - 1].Split(':')[0];
+
+            using var hive = GetRegistryHive(hiveName);
+            using var key = hive.OpenSubKey(subKeyPath, true);
+
+            if (key != null)
+                key.DeleteValue(valueName, false);
+        }
+
+        private static void DeleteRegistryKey(string keyPath)
+        {
+            var pathParts = keyPath.Split('\\');
+            var hiveName = pathParts[0];
+            var subKeyPath = string.Join("\\", pathParts, 1, pathParts.Length - 1);
+            using var hive = GetRegistryHive(hiveName);
+            if (hive != null)
+                hive.DeleteSubKeyTree(subKeyPath, false);
+        }
+
+        private static RegistryKey GetRegistryHive(string hive)
+        {
+            return hive switch
+            {
+                "HKEY_LOCAL_MACHINE" => Registry.LocalMachine,
+                "HKEY_CURRENT_USER" => Registry.CurrentUser,
+                "HKEY_CLASSES_ROOT" => Registry.ClassesRoot,
+                "HKEY_USERS" => Registry.Users,
+                "HKEY_CURRENT_CONFIG" => Registry.CurrentConfig,
+                _ => null
+            };
         }
     }
 }
