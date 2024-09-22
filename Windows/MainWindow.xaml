@@ -201,7 +201,8 @@
 
             <Button Style="{DynamicResource startButton_Style}" x:Name="start_Button"
                     Content="{StaticResource start}"
-                    Grid.Row="1"
+                    Grid.Row="0"
+                    Grid.RowSpan="3"
                     Width="300"
                     Height="50"
                     FontSize="26"
