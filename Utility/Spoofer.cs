@@ -1,9 +1,6 @@
 ﻿using Microsoft.Win32;
-using SteamSpoofer.Windows;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
-using System.Windows;
-using System.Windows.Navigation;
 
 namespace SteamSpoofer.Utility
 {
@@ -12,6 +9,8 @@ namespace SteamSpoofer.Utility
         private static int processesCount = 0;
 
         public static List<string> Matches = new List<string>();
+
+        public static string[] searchValues = {"valve", "steam", "dota"};
 
         private static readonly RegistryKey[] Hives =
         {
@@ -22,83 +21,74 @@ namespace SteamSpoofer.Utility
             Registry.CurrentConfig
         };
 
-        public static async Task SpoofData()
+        public static void SpoofData()
         {
-            await TerminateSteam();
-            await SearchEntireRegistry("valve");
+            if (IsSteamRunning())
+                TerminateSteam();
+            else
+                SearchEntireRegistry(searchValues);
         }
         private static bool IsSteamRunning()
         {
             return Process.GetProcessesByName("steam").Any();
         }
 
-        private static async Task TerminateSteam()
+        private static void TerminateSteam()
         {
-            await Task.Run(() =>
+            Helper.SetLogText("terminating_steam");
+            var steamProcess = Process.GetProcessesByName("steam").FirstOrDefault();
+            var steamRelatedProcesses = Process.GetProcesses().Where(p => p.ProcessName.Equals("steamservice",
+                StringComparison.OrdinalIgnoreCase) || p.ProcessName.Equals("steamwebhelper")).ToList();
+            processesCount = steamRelatedProcesses.Count;
+            foreach (var srp in steamRelatedProcesses)
             {
-                if (IsSteamRunning())
-                {
-                    Helper.SetLogText("terminating_steam");
-                    var steamProcess = Process.GetProcessesByName("steam").FirstOrDefault();
-                    var steamRelatedProcesses = Process.GetProcesses().Where(p => p.ProcessName.Equals("steamservice",
-                        StringComparison.OrdinalIgnoreCase) || p.ProcessName.Equals("steamwebhelper")).ToList();
-                    processesCount = steamRelatedProcesses.Count;
-                    //foreach (var srp in steamRelatedProcesses)
-                    //{
-                    //    srp.EnableRaisingEvents = true;
-                    //    srp.Exited += Process_Exited;
-                    //}
-                    steamProcess.Kill();
-                }
-            });
+                srp.EnableRaisingEvents = true;
+                srp.Exited += Process_Exited;
+            }
+            steamProcess.Kill();
         }
-        //private static void Process_Exited(object? sender, EventArgs e)
-        //{
-        //    processesCount--;
-        //    if (processesCount == 0)
-        //    {
-        //        Application.Current.Dispatcher.Invoke((Action)delegate //no idea why
-        //        {
-        //            new DialogWindow("title", "Process is killed") { Owner = Application.Current.Windows.OfType<MainWindow>().First() }.ShowDialog();
-        //        });
-        //    }
-        //}
 
-        public static async Task SearchEntireRegistry(string searchValue)
+        private static void Process_Exited(object? sender, EventArgs e)
         {
-            foreach (var hive in Hives)
+            processesCount--;
+            if (processesCount == 0)
             {
-                await SearchRegistryKey(hive, searchValue, hive.Name);
+                SearchEntireRegistry(searchValues);
             }
         }
 
-        public static async Task SearchRegistryKey(RegistryKey key, string searchValue, string path)
+        public static void SearchEntireRegistry(string[] searchValue)
         {
-            var regex = new Regex(searchValue, RegexOptions.IgnoreCase);
+            foreach (var hive in Hives)
+            {
+                SearchRegistryKey(hive, searchValue, hive.Name);
+            }
+        }
+
+        public static void SearchRegistryKey(RegistryKey key, string[] searchValue, string path)
+        {
+            var regex = new Regex($"{searchValue[0]}|{searchValue[1]}|{searchValue[2]}", RegexOptions.IgnoreCase);
             var nonregex = new Regex("steamspoofer", RegexOptions.IgnoreCase);
 
-            await Task.Run(() =>
+            foreach (var value in key.GetValueNames())
             {
-                foreach (var value in key.GetValueNames())
+                Helper.SetLogText("searching", $"{path}\\{value}");
+                if (regex.IsMatch(value) && !nonregex.IsMatch(value))
                 {
-                    Helper.SetLogText("searching", $"{path}\\{value}");
-                    if (regex.IsMatch(value) && !nonregex.IsMatch(value))
-                    {
-                        Matches.Add($"{path}\\{value}");
-                    }
-                    var valueData = key.GetValue(value)?.ToString();
-                    if (valueData != null && regex.IsMatch(valueData) && !nonregex.IsMatch(valueData))
-                    {
-                        Matches.Add($"{path}\\{value}: {valueData}");
-                    }
+                    Matches.Add($"{path}\\{value}");
                 }
-            });
+                var valueData = key.GetValue(value)?.ToString();
+                if (valueData != null && regex.IsMatch(valueData) && !nonregex.IsMatch(valueData))
+                {
+                    Matches.Add($"{path}\\{value}: {valueData}");
+                }
+            }
 
             foreach (var subKeyName in key.GetSubKeyNames())
             {
                 try
                 {
-                    using var subKey = key.OpenSubKey(subKeyName, true);
+                    using var subKey = key.OpenSubKey(subKeyName);
                     if (subKey != null)
                     {
                         Helper.SetLogText("searching", $"{path}\\{subKeyName}");
@@ -106,10 +96,10 @@ namespace SteamSpoofer.Utility
                         {
                             Matches.Add($"{path}\\{subKeyName}");
                         }
-                        await SearchRegistryKey(subKey, searchValue, $"{path}\\{subKeyName}");
+                        SearchRegistryKey(subKey, searchValue, $"{path}\\{subKeyName}");
                     }
                 }
-                catch (System.Security.SecurityException) 
+                catch (System.Security.SecurityException)
                 {
                     // ну и хуй с ним
                 }
