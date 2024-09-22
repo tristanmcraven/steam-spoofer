@@ -11,7 +11,7 @@ namespace SteamSpoofer.Utility
     {
         public static Window GetWindow<TWindow>() where TWindow : Window
         {
-            return Application.Current.Windows.OfType<TWindow>().First()!;
+            return Application.Current.Windows.OfType<TWindow>().First()! as TWindow;
         }
     }
 }

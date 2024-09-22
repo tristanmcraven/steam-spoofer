@@ -17,7 +17,19 @@ namespace SteamSpoofer.Utility
         
         public static void SetLogText(string text)
         {
-
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                var mw = Application.Current.Windows.OfType<MainWindow>().FirstOrDefault();
+                mw.status_TextBlock.Text = GetResource(text);
+            });
+        }
+        public static void SetLogText(string text, string appendix)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                var mw = Application.Current.Windows.OfType<MainWindow>().FirstOrDefault();
+                mw.status_TextBlock.Text = GetResource(text) + $" {appendix}";
+            });
         }
     }
 }
