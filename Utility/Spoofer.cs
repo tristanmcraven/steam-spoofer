@@ -134,7 +134,7 @@ namespace SteamSpoofer.Utility
                 }
                 catch (Exception)
                 {
-                    Debug.WriteLine("иди нахуй сука");
+                    Debug.WriteLine($"Fail deleting: {match}");
                 }
             }
         }
@@ -143,8 +143,10 @@ namespace SteamSpoofer.Utility
 
         private static void DeleteRegistryValue(string valuePath)
         {
-            var pathParts = valuePath.Split('\\');
-            var hiveName = pathParts[0];
+            //valuePath Example: "HKEY_LOCAL_MACHINE\SubKey\AnotherSubKey\AndAnotherSubKey:ValueName:ValueData"
+
+            var pathParts = ReturnValuePathParts(valuePath); // { "HKEY_LOCAL_MACHINE", "SubKey", "AnotherSubKey", "AndAnotherSubKey:ValueName:ValueData" } 
+            var hiveName = pathParts[0]; // "HKEY_LOCAL_MACHINE"
             var subKeyPath = string.Join("\\", pathParts, 1, pathParts.Length - 2);
             var valueName = pathParts[pathParts.Length - 1].Split(':')[0];
 
@@ -153,7 +155,6 @@ namespace SteamSpoofer.Utility
 
             if (key != null)
             {
-                SetRegistryKeyPermissions(hiveName, subKeyPath);
                 if (valueName == "")
                     key.SetValue("", null);
                 else
@@ -164,13 +165,14 @@ namespace SteamSpoofer.Utility
 
         private static void DeleteRegistryKey(string keyPath)
         {
-            var pathParts = keyPath.Split('\\');
-            var hiveName = pathParts[0];
-            var subKeyPath = string.Join("\\", pathParts, 1, pathParts.Length - 1);
-            using var hive = GetRegistryHive(hiveName);
+            //keyPath Example: "HKEY_LOCAL_MACHINE\SubKey\AnotherSubKey\AndAnotherSubKey"
+
+            var pathParts = keyPath.Split('\\'); // { "HKEY_LOCAL_MACHINE", "SubKey", "AnotherSubKey", "AndAnotherSubKey" }
+            var hiveName = pathParts[0]; // "HKEY_LOCAL_MACHINE"
+            var subKeyPath = string.Join("\\", pathParts, 1, pathParts.Length - 1); // "SubKey\AnotherSubKey\AndAnotherSubKey"
+            using var hive = GetRegistryHive(hiveName); // Returns RegistryKey object of hive name passed, Output: Registry.LocalMachine
             if (hive != null)
             {
-                SetRegistryKeyPermissions(hiveName, subKeyPath);
                 hive.DeleteSubKeyTree(subKeyPath, false);
             }
         }
@@ -201,6 +203,23 @@ namespace SteamSpoofer.Utility
                     key.SetAccessControl(security);
                 }
             }
+        }
+
+        private static string[] ReturnValuePathParts(string path)
+        {
+            string[] pathParts = path.Split(new[] { '\\' }, StringSplitOptions.None);
+
+            // Identify the last element and split it further using ':'
+            string lastPart = pathParts[pathParts.Length - 1];
+            int index = lastPart.IndexOf(':');
+            if (index != -1)
+            {
+                pathParts[pathParts.Length - 1] = lastPart.Substring(0, index);
+                Array.Resize(ref pathParts, pathParts.Length + 1);
+                pathParts[pathParts.Length - 1] = lastPart.Substring(index + 1);
+            }
+
+            return pathParts;
         }
     }
 }
