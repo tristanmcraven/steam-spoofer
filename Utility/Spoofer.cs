@@ -14,6 +14,8 @@ namespace SteamSpoofer.Utility
 
         public static List<string> Matches = new List<string>();
 
+        public static List<Entry> Entries = new List<Entry>();
+
         public static List<string> throwAways = new List<string>();
 
         public static List<string[]> zxc1 = new List<string[]>();
@@ -34,14 +36,6 @@ namespace SteamSpoofer.Utility
             if (IsSteamRunning())
                 await TerminateSteam();
             await Task.Run(() => SearchEntireRegistry(searchValues));
-            //foreach (var match in Matches)
-            //{
-            //    if (match.Contains("::"))
-            //    {
-            //        throwAways.Add(match);
-            //        zxc1.Add(match.Split(':'));
-            //    }
-            //}
             await Task.Run(() => DeleteFoundEntries());
         }
         private static bool IsSteamRunning() => Process.GetProcessesByName("steam").Any();
@@ -90,12 +84,12 @@ namespace SteamSpoofer.Utility
             {
                 if (regex.IsMatch(value) && !nonregex.IsMatch(value))
                 {
-                    Matches.Add($"{path}:{value}");
+                    Entries.Add(new Entry(path, value, null));
                 }
                 var valueData = key.GetValue(value)?.ToString();
                 if (valueData != null && regex.IsMatch(valueData) && !nonregex.IsMatch(valueData))
                 {
-                    Matches.Add($"{path}:{value}:{valueData}");
+                    Entries.Add(new Entry(path, value, valueData));
                 }
             }
 
@@ -106,10 +100,9 @@ namespace SteamSpoofer.Utility
                     using var subKey = key.OpenSubKey(subKeyName);
                     if (subKey != null)
                     {
-                        //Helper.SetLogText("searching", $"{path}\\{subKeyName}"); //хуета полная
                         if (regex.IsMatch(subKeyName) && !nonregex.IsMatch(subKeyName))
                         {
-                            Matches.Add($"{path}\\{subKeyName}");
+                            Entries.Add(new Entry($"{path}\\{subKeyName}", null, null));
                         }
                         SearchRegistryKey(subKey, searchValue, $"{path}\\{subKeyName}");
                     }
@@ -120,106 +113,48 @@ namespace SteamSpoofer.Utility
                 }
             }
         }
+
         public static void DeleteFoundEntries()
         {
             Helper.SetLogText("deleting_entries");
-            foreach (var match in Matches)
+            foreach (var entry in Entries)
             {
                 try
                 {
-                    if (IsValuePath(match))
-                        DeleteRegistryValue(match);
+                    if (IsValuePath(entry))
+                        DeleteRegistryValue(entry);
                     else
-                        DeleteRegistryKey(match);
+                        DeleteRegistryKey(entry);
                 }
                 catch (Exception)
                 {
-                    Debug.WriteLine($"Fail deleting: {match}");
+                    Debug.WriteLine($"Fail deleting: {entry.Path}:{entry.ValueName}:{entry.ValueData}");
                 }
             }
         }
 
-        private static bool IsValuePath(string path) => path.Contains(":");
+        private static bool IsValuePath(Entry entry) => entry.ValueName != null;
 
-        private static void DeleteRegistryValue(string valuePath)
+        private static void DeleteRegistryValue(Entry entry)
         {
-            //valuePath Example: "HKEY_LOCAL_MACHINE\SubKey\AnotherSubKey\AndAnotherSubKey:ValueName:ValueData"
-
-            var pathParts = ReturnValuePathParts(valuePath); // { "HKEY_LOCAL_MACHINE", "SubKey", "AnotherSubKey", "AndAnotherSubKey:ValueName:ValueData" } 
-            var hiveName = pathParts[0]; // "HKEY_LOCAL_MACHINE"
-            var subKeyPath = string.Join("\\", pathParts, 1, pathParts.Length - 2);
-            var valueName = pathParts[pathParts.Length - 1].Split(':')[0];
-
-            using var hive = GetRegistryHive(hiveName);
-            using var key = hive.OpenSubKey(subKeyPath, true);
-
+            using var hive = entry.Hive;
+            using var key = hive.OpenSubKey(entry.SubkeyPath, true);
             if (key != null)
             {
-                if (valueName == "")
+                if (entry.ValueName == "")
                     key.SetValue("", null);
                 else
-                    key.DeleteValue(valueName, false);
-            }
-
-        }
-
-        private static void DeleteRegistryKey(string keyPath)
-        {
-            //keyPath Example: "HKEY_LOCAL_MACHINE\SubKey\AnotherSubKey\AndAnotherSubKey"
-
-            var pathParts = keyPath.Split('\\'); // { "HKEY_LOCAL_MACHINE", "SubKey", "AnotherSubKey", "AndAnotherSubKey" }
-            var hiveName = pathParts[0]; // "HKEY_LOCAL_MACHINE"
-            var subKeyPath = string.Join("\\", pathParts, 1, pathParts.Length - 1); // "SubKey\AnotherSubKey\AndAnotherSubKey"
-            using var hive = GetRegistryHive(hiveName); // Returns RegistryKey object of hive name passed, Output: Registry.LocalMachine
-            if (hive != null)
-            {
-                hive.DeleteSubKeyTree(subKeyPath, false);
+                    key.DeleteValue(entry.ValueName!, false);
             }
         }
 
-        private static RegistryKey GetRegistryHive(string hive)
+        private static void DeleteRegistryKey(Entry entry)
         {
-            return hive switch
+            using (var hive = entry.Hive)
             {
-                "HKEY_LOCAL_MACHINE" => Registry.LocalMachine,
-                "HKEY_CURRENT_USER" => Registry.CurrentUser,
-                "HKEY_CLASSES_ROOT" => Registry.ClassesRoot,
-                "HKEY_USERS" => Registry.Users,
-                "HKEY_CURRENT_CONFIG" => Registry.CurrentConfig,
-                _ => null
-            };
-        }
-
-        private static void SetRegistryKeyPermissions(string hiveName, string keyPath)
-        {
-            using (var key = GetRegistryHive(hiveName).OpenSubKey(keyPath, true))
-            {
-                var sid = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
-                var rule = new RegistryAccessRule(sid, RegistryRights.FullControl, AccessControlType.Allow);
-                if (key != null)
-                {
-                    var security = key.GetAccessControl();
-                    security.AddAccessRule(rule);
-                    key.SetAccessControl(security);
-                }
+                if (hive != null)
+                    hive.DeleteSubKeyTree(entry.SubkeyPath, false);
             }
-        }
-
-        private static string[] ReturnValuePathParts(string path)
-        {
-            string[] pathParts = path.Split(new[] { '\\' }, StringSplitOptions.None);
-
-            // Identify the last element and split it further using ':'
-            string lastPart = pathParts[pathParts.Length - 1];
-            int index = lastPart.IndexOf(':');
-            if (index != -1)
-            {
-                pathParts[pathParts.Length - 1] = lastPart.Substring(0, index);
-                Array.Resize(ref pathParts, pathParts.Length + 1);
-                pathParts[pathParts.Length - 1] = lastPart.Substring(index + 1);
-            }
-
-            return pathParts;
         }
     }
 }
