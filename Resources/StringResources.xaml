@@ -9,4 +9,5 @@
     <clr:String x:Key="terminating_steam">Terminating Steam...</clr:String>
     <clr:String x:Key="searching_registry">Searching Registry...</clr:String>
     <clr:String x:Key="wait">WAIT...</clr:String>
+    <clr:String x:Key="deleting_entries">Deleting Registry entries...</clr:String>
 </ResourceDictionary>

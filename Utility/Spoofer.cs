@@ -120,6 +120,7 @@ namespace SteamSpoofer.Utility
         }
         public static void DeleteFoundEntries()
         {
+            Helper.SetLogText("deleting_entries");
             foreach (var match in Matches)
             {
                 try
@@ -131,7 +132,7 @@ namespace SteamSpoofer.Utility
                 }
                 catch (Exception)
                 {
-
+                    Debug.WriteLine("иди нахуй сука");
                 }
             }
         }
