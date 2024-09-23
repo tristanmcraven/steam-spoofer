@@ -8,6 +8,8 @@ namespace SteamSpoofer.Utility
     {
         private static int processesCount = 0;
 
+        private static TaskCompletionSource<bool> steamTerminationTcs;
+
         public static List<string> Matches = new List<string>();
 
         public static List<string> throwAways = new List<string>();
@@ -25,12 +27,11 @@ namespace SteamSpoofer.Utility
             Registry.CurrentConfig
         };
 
-        public static void SpoofData()
+        public static async Task SpoofData()
         {
             if (IsSteamRunning())
-                TerminateSteam();
-            else
-                SearchEntireRegistry(searchValues);
+                await TerminateSteam();
+            await Task.Run(() => SearchEntireRegistry(searchValues));
             foreach (var match in Matches)
             {
                 if (match.Contains("::"))
@@ -40,32 +41,32 @@ namespace SteamSpoofer.Utility
                 }
             }
         }
-        private static bool IsSteamRunning()
-        {
-            return Process.GetProcessesByName("steam").Any();
-        }
+        private static bool IsSteamRunning() => Process.GetProcessesByName("steam").Any();
 
-        private static void TerminateSteam()
+        private static async Task TerminateSteam()
         {
             Helper.SetLogText("terminating_steam");
             var steamProcess = Process.GetProcessesByName("steam").FirstOrDefault();
             var steamRelatedProcesses = Process.GetProcesses().Where(p => p.ProcessName.Equals("steamservice",
                 StringComparison.OrdinalIgnoreCase) || p.ProcessName.Equals("steamwebhelper")).ToList();
             processesCount = steamRelatedProcesses.Count;
+            steamTerminationTcs = new TaskCompletionSource<bool>();
             foreach (var srp in steamRelatedProcesses)
             {
                 srp.EnableRaisingEvents = true;
                 srp.Exited += Process_Exited;
             }
             steamProcess.Kill();
+
+            await steamTerminationTcs.Task;
         }
 
-        private static void Process_Exited(object? sender, EventArgs e)
+        private static async void Process_Exited(object? sender, EventArgs e)
         {
             processesCount--;
             if (processesCount == 0)
             {
-                SearchEntireRegistry(searchValues);
+                steamTerminationTcs.TrySetResult(true);
             }
         }
 
@@ -103,7 +104,7 @@ namespace SteamSpoofer.Utility
                     using var subKey = key.OpenSubKey(subKeyName);
                     if (subKey != null)
                     {
-                        Helper.SetLogText("searching", $"{path}\\{subKeyName}");
+                        //Helper.SetLogText("searching", $"{path}\\{subKeyName}"); //хуета полная
                         if (regex.IsMatch(subKeyName) && !nonregex.IsMatch(subKeyName))
                         {
                             Matches.Add($"{path}\\{subKeyName}");

@@ -30,15 +30,29 @@ namespace SteamSpoofer
             //StartProgress();
         }
 
-        private void start_Button_Click(object sender, RoutedEventArgs e)
+        private async void start_Button_Click(object sender, RoutedEventArgs e)
         {
-            Spoofer.SpoofData();
+            DisableStartButton();
+            await Spoofer.SpoofData();
+            EnableStartButton();
         }
 
         private void titleBar_Grid_MouseDown(object sender, MouseButtonEventArgs e)
         {
             if (e.LeftButton == MouseButtonState.Pressed)
                 this.DragMove();
+        }
+
+        private void DisableStartButton()
+        {
+            start_Button.IsEnabled = false;
+            start_Button.Content = Helper.GetResource("wait");
+        }
+
+        private void EnableStartButton()
+        {
+            start_Button.IsEnabled = true;
+            start_Button.Content = Helper.GetResource("start");
         }
 
 

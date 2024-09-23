@@ -8,4 +8,5 @@
     <clr:String x:Key="steam_is_running">Steam is currently running. To proceed, please close Steam manually and try again.</clr:String>
     <clr:String x:Key="terminating_steam">Terminating Steam...</clr:String>
     <clr:String x:Key="searching_registry">Searching Registry...</clr:String>
+    <clr:String x:Key="wait">WAIT...</clr:String>
 </ResourceDictionary>
