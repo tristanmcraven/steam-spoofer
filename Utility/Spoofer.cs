@@ -10,6 +10,10 @@ namespace SteamSpoofer.Utility
 
         public static List<string> Matches = new List<string>();
 
+        public static List<string> throwAways = new List<string>();
+
+        public static List<string[]> zxc1 = new List<string[]>();
+
         public static string[] searchValues = {"valve", "steam", "dota"};
 
         private static readonly RegistryKey[] Hives =
@@ -27,6 +31,14 @@ namespace SteamSpoofer.Utility
                 TerminateSteam();
             else
                 SearchEntireRegistry(searchValues);
+            foreach (var match in Matches)
+            {
+                if (match.Contains("::"))
+                {
+                    throwAways.Add(match);
+                    zxc1.Add(match.Split(':'));
+                }
+            }
         }
         private static bool IsSteamRunning()
         {
@@ -59,6 +71,7 @@ namespace SteamSpoofer.Utility
 
         public static void SearchEntireRegistry(string[] searchValue)
         {
+            Helper.SetLogText("searching_registry");
             foreach (var hive in Hives)
             {
                 SearchRegistryKey(hive, searchValue, hive.Name);
@@ -67,20 +80,19 @@ namespace SteamSpoofer.Utility
 
         public static void SearchRegistryKey(RegistryKey key, string[] searchValue, string path)
         {
-            var regex = new Regex($"{searchValue[0]}|{searchValue[1]}|{searchValue[2]}", RegexOptions.IgnoreCase);
+            var regex = new Regex(String.Join('|', searchValue), RegexOptions.IgnoreCase);
             var nonregex = new Regex("steamspoofer", RegexOptions.IgnoreCase);
 
             foreach (var value in key.GetValueNames())
             {
-                Helper.SetLogText("searching", $"{path}\\{value}");
                 if (regex.IsMatch(value) && !nonregex.IsMatch(value))
                 {
-                    Matches.Add($"{path}\\{value}");
+                    Matches.Add($"{path}:{value}");
                 }
                 var valueData = key.GetValue(value)?.ToString();
                 if (valueData != null && regex.IsMatch(valueData) && !nonregex.IsMatch(valueData))
                 {
-                    Matches.Add($"{path}\\{value}: {valueData}");
+                    Matches.Add($"{path}:{value}:{valueData}");
                 }
             }
 
@@ -136,7 +148,13 @@ namespace SteamSpoofer.Utility
             using var key = hive.OpenSubKey(subKeyPath, true);
 
             if (key != null)
-                key.DeleteValue(valueName, false);
+            {
+                if (valueName == "")
+                    key.SetValue("", null);
+                else
+                    key.DeleteValue(valueName, false);
+            }
+
         }
 
         private static void DeleteRegistryKey(string keyPath)
