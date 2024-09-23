@@ -18,7 +18,7 @@ namespace SteamSpoofer.Utility
 
         public static List<string[]> zxc1 = new List<string[]>();
 
-        public static string[] searchValues = {"valve", "steam", "dota"};
+        public static string[] searchValues = { "valve", "steam", "dota" };
 
         private static readonly RegistryKey[] Hives =
         {
@@ -194,9 +194,12 @@ namespace SteamSpoofer.Utility
             {
                 var sid = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
                 var rule = new RegistryAccessRule(sid, RegistryRights.FullControl, AccessControlType.Allow);
-                var security = key.GetAccessControl();
-                security.AddAccessRule(rule);
-                key.SetAccessControl(security);
+                if (key != null)
+                {
+                    var security = key.GetAccessControl();
+                    security.AddAccessRule(rule);
+                    key.SetAccessControl(security);
+                }
             }
         }
     }
