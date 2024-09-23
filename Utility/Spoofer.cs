@@ -1,5 +1,7 @@
 ﻿using Microsoft.Win32;
 using System.Diagnostics;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text.RegularExpressions;
 
 namespace SteamSpoofer.Utility
@@ -151,6 +153,7 @@ namespace SteamSpoofer.Utility
 
             if (key != null)
             {
+                SetRegistryKeyPermissions(hiveName, subKeyPath);
                 if (valueName == "")
                     key.SetValue("", null);
                 else
@@ -166,7 +169,10 @@ namespace SteamSpoofer.Utility
             var subKeyPath = string.Join("\\", pathParts, 1, pathParts.Length - 1);
             using var hive = GetRegistryHive(hiveName);
             if (hive != null)
+            {
+                SetRegistryKeyPermissions(hiveName, subKeyPath);
                 hive.DeleteSubKeyTree(subKeyPath, false);
+            }
         }
 
         private static RegistryKey GetRegistryHive(string hive)
@@ -180,6 +186,18 @@ namespace SteamSpoofer.Utility
                 "HKEY_CURRENT_CONFIG" => Registry.CurrentConfig,
                 _ => null
             };
+        }
+
+        private static void SetRegistryKeyPermissions(string hiveName, string keyPath)
+        {
+            using (var key = GetRegistryHive(hiveName).OpenSubKey(keyPath, true))
+            {
+                var sid = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+                var rule = new RegistryAccessRule(sid, RegistryRights.FullControl, AccessControlType.Allow);
+                var security = key.GetAccessControl();
+                security.AddAccessRule(rule);
+                key.SetAccessControl(security);
+            }
         }
     }
 }
