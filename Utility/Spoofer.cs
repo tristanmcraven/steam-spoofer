@@ -32,14 +32,15 @@ namespace SteamSpoofer.Utility
             if (IsSteamRunning())
                 await TerminateSteam();
             await Task.Run(() => SearchEntireRegistry(searchValues));
-            foreach (var match in Matches)
-            {
-                if (match.Contains("::"))
-                {
-                    throwAways.Add(match);
-                    zxc1.Add(match.Split(':'));
-                }
-            }
+            //foreach (var match in Matches)
+            //{
+            //    if (match.Contains("::"))
+            //    {
+            //        throwAways.Add(match);
+            //        zxc1.Add(match.Split(':'));
+            //    }
+            //}
+            await Task.Run(() => DeleteFoundEntries());
         }
         private static bool IsSteamRunning() => Process.GetProcessesByName("steam").Any();
 
@@ -47,8 +48,7 @@ namespace SteamSpoofer.Utility
         {
             Helper.SetLogText("terminating_steam");
             var steamProcess = Process.GetProcessesByName("steam").FirstOrDefault();
-            var steamRelatedProcesses = Process.GetProcesses().Where(p => p.ProcessName.Equals("steamservice",
-                StringComparison.OrdinalIgnoreCase) || p.ProcessName.Equals("steamwebhelper")).ToList();
+            var steamRelatedProcesses = Process.GetProcesses().Where(p => p.ProcessName.Equals("steamservice", StringComparison.OrdinalIgnoreCase) || p.ProcessName.Equals("steamwebhelper")).ToList();
             processesCount = steamRelatedProcesses.Count;
             steamTerminationTcs = new TaskCompletionSource<bool>();
             foreach (var srp in steamRelatedProcesses)
