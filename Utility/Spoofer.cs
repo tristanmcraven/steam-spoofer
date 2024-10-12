@@ -12,13 +12,7 @@ namespace SteamSpoofer.Utility
 
         private static TaskCompletionSource<bool> steamTerminationTcs;
 
-        public static List<string> Matches = new List<string>();
-
         public static List<Entry> Entries = new List<Entry>();
-
-        public static List<string> throwAways = new List<string>();
-
-        public static List<string[]> zxc1 = new List<string[]>();
 
         public static string[] searchValues = { "valve", "steam", "dota" };
 
@@ -154,6 +148,17 @@ namespace SteamSpoofer.Utility
             {
                 if (hive != null)
                     hive.DeleteSubKeyTree(entry.SubkeyPath, false);
+            }
+        }
+
+        private static void ChangeMachineGuid()
+        {
+            using (var hklm = Registry.LocalMachine)
+            {
+                using (var key = hklm.OpenSubKey("SOFTWARE\\Microsoft\\Cryptography", true))
+                {
+                    key.SetValue("MachineGuid", Guid.NewGuid().ToString());
+                }
             }
         }
     }
